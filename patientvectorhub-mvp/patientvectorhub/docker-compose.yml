@@ -1,0 +1,104 @@
+version: "3.9"
+
+# PatientVectorHub - MVP local stack
+# Scope: Postgres + Qdrant only. No Kafka/Keycloak/Vault in MVP (see README "Phase 2").
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pvh-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-pvh}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pvh_local_pw}
+      POSTGRES_DB: ${POSTGRES_DB:-patientvectorhub}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pvh_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pvh}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: pvh-qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - pvh_qdrant_data:/qdrant/storage
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    container_name: pvh-api-gateway
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-pvh}:${POSTGRES_PASSWORD:-pvh_local_pw}@postgres:5432/${POSTGRES_DB:-patientvectorhub}
+      RAG_ENGINE_URL: http://rag-engine:8002
+      INGESTION_URL: http://ingestion:8001
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  ingestion:
+    build:
+      context: .
+      dockerfile: ingestion/Dockerfile
+    container_name: pvh-ingestion
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-pvh}:${POSTGRES_PASSWORD:-pvh_local_pw}@postgres:5432/${POSTGRES_DB:-patientvectorhub}
+      QDRANT_URL: http://qdrant:6333
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    volumes:
+      - pvh_uploads:/data/uploads
+
+  rag-engine:
+    build:
+      context: .
+      dockerfile: rag-engine/Dockerfile
+    container_name: pvh-rag-engine
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-pvh}:${POSTGRES_PASSWORD:-pvh_local_pw}@postgres:5432/${POSTGRES_DB:-patientvectorhub}
+      QDRANT_URL: http://qdrant:6333
+    ports:
+      - "8002:8002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+
+  dashboard:
+    build: ./dashboard
+    container_name: pvh-dashboard
+    restart: unless-stopped
+    environment:
+      VITE_API_BASE_URL: http://localhost:8000
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api-gateway
+
+volumes:
+  pvh_postgres_data:
+  pvh_qdrant_data:
+  pvh_uploads:
