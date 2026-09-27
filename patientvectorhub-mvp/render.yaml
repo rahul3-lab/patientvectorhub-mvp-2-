@@ -1,0 +1,66 @@
+services:
+  - type: web
+    name: pvh-api-gateway
+    runtime: docker
+    dockerfilePath: ./api-gateway/Dockerfile
+    dockerContext: ./api-gateway
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: AUTH_MODE
+        value: development
+      - key: INGESTION_URL
+        fromService:
+          type: web
+          name: pvh-ingestion
+          property: hostport
+      - key: RAG_ENGINE_URL
+        fromService:
+          type: web
+          name: pvh-rag-engine
+          property: hostport
+
+  - type: web
+    name: pvh-ingestion
+    runtime: docker
+    dockerfilePath: ./ingestion/Dockerfile
+    dockerContext: ./ingestion
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: VECTOR_STORE_URL
+        fromService:
+          type: web
+          name: pvh-vector-store
+          property: hostport
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_EMBEDDING_MODEL
+        value: text-embedding-3-small
+
+  - type: web
+    name: pvh-rag-engine
+    runtime: docker
+    dockerfilePath: ./rag-engine/Dockerfile
+    dockerContext: ./rag-engine
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: VECTOR_STORE_URL
+        fromService:
+          type: web
+          name: pvh-vector-store
+          property: hostport
+      - key: LLM_PROVIDER
+        value: grounded-template
+
+  - type: web
+    name: pvh-vector-store
+    runtime: docker
+    dockerfilePath: ./vector-store/Dockerfile
+    dockerContext: ./vector-store
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: VECTOR_BACKEND
+        value: memory
