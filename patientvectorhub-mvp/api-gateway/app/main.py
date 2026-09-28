@@ -7,8 +7,13 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-INGESTION_URL = os.getenv("INGESTION_URL", "http://localhost:8001")
-RAG_ENGINE_URL = os.getenv("RAG_ENGINE_URL", "http://localhost:8002")
+
+def _with_scheme(url: str) -> str:
+    return url if url.startswith(("http://", "https://")) else f"http://{url}"
+
+
+INGESTION_URL = _with_scheme(os.getenv("INGESTION_URL", "http://localhost:8001"))
+RAG_ENGINE_URL = _with_scheme(os.getenv("RAG_ENGINE_URL", "http://localhost:8002"))
 
 
 class DocumentRequest(BaseModel):
