@@ -10,15 +10,9 @@ services:
       - key: AUTH_MODE
         value: development
       - key: INGESTION_URL
-        fromService:
-          type: web
-          name: pvh-ingestion
-          property: hostport
+        value: https://pvh-ingestion.onrender.com
       - key: RAG_ENGINE_URL
-        fromService:
-          type: web
-          name: pvh-rag-engine
-          property: hostport
+        value: https://pvh-rag-engine.onrender.com
 
   - type: web
     name: pvh-ingestion
@@ -29,10 +23,7 @@ services:
     healthCheckPath: /health
     envVars:
       - key: VECTOR_STORE_URL
-        fromService:
-          type: web
-          name: pvh-vector-store
-          property: hostport
+        value: https://pvh-vector-store.onrender.com
       - key: OPENAI_API_KEY
         sync: false
       - key: OPENAI_EMBEDDING_MODEL
@@ -47,10 +38,7 @@ services:
     healthCheckPath: /health
     envVars:
       - key: VECTOR_STORE_URL
-        fromService:
-          type: web
-          name: pvh-vector-store
-          property: hostport
+        value: https://pvh-vector-store.onrender.com
       - key: LLM_PROVIDER
         value: grounded-template
 
